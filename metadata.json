@@ -1,0 +1,5 @@
+{
+  "name": "HYBRIDO: Multimodal Resource Creator",
+  "description": "An application that takes source content and automatically generates various educational resources like interactive quizzes, case studies, textual infographics, video scripts, and collaborative activities, adapting to a desired complexity level.",
+  "requestFramePermissions": []
+}
