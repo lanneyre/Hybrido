@@ -1,81 +1,106 @@
 
 import React from 'react';
-import type { ResourceType, Complexity, ResourceOption } from '../types';
-import { QuizIcon, CaseStudyIcon, InfographicIcon, VideoScriptIcon, CollaborativeActivityIcon, GenerateIcon } from './Icons';
+import type { ResourceType, BloomLevel, TargetAudience, ResourceOption, ResourceConfigs } from '../types';
+import { QuizIcon, CaseStudyIcon, InfographicIcon, VideoScriptIcon, CollaborativeActivityIcon, GenerateIcon, EvaluationIcon, DidacticsIcon, GlossaryIcon } from './Icons';
+import { ResourceConfigsPanel } from './ResourceConfigs';
 
 const resourceOptions: ResourceOption[] = [
-  { id: 'quiz', label: 'Quiz', icon: QuizIcon, description: 'Multiple choice questions' },
-  { id: 'case_study', label: 'Case Study', icon: CaseStudyIcon, description: 'Practical scenarios' },
-  { id: 'infographic', label: 'Infographic', icon: InfographicIcon, description: 'Key points summary' },
-  { id: 'video_script', label: 'Video Script', icon: VideoScriptIcon, description: 'Engaging narration' },
-  { id: 'collaborative_activity', label: 'Activity', icon: CollaborativeActivityIcon, description: 'Group-based tasks' },
+  { id: 'quiz', label: 'Quiz', icon: QuizIcon, description: 'Questions à choix multiples' },
+  { id: 'case_study', label: 'Étude de Cas', icon: CaseStudyIcon, description: 'Scénarios pratiques' },
+  { id: 'infographic', label: 'Infographie', icon: InfographicIcon, description: 'Résumé visuel & textuel' },
+  { id: 'video_script', label: 'Script Vidéo', icon: VideoScriptIcon, description: 'Narration engageante' },
+  { id: 'collaborative_activity', label: 'Activité', icon: CollaborativeActivityIcon, description: 'Tâches de groupe' },
+  { id: 'evaluation', label: 'Évaluation', icon: EvaluationIcon, description: 'Évaluer la compréhension' },
+  { id: 'didactics', label: 'Didactique', icon: DidacticsIcon, description: 'Conseils pédagogiques' },
+  { id: 'glossary', label: 'Glossaire', icon: GlossaryIcon, description: 'Définitions des termes clés' },
 ];
 
-const complexityOptions: { id: Complexity; label: string }[] = [
-  { id: 'beginner', label: 'Beginner' },
-  { id: 'intermediate', label: 'Intermediate' },
-  { id: 'advanced', label: 'Advanced' },
+const bloomOptions: { id: BloomLevel; label: string }[] = [
+  { id: 'remember', label: 'Se souvenir' },
+  { id: 'understand', label: 'Comprendre' },
+  { id: 'apply', label: 'Appliquer' },
+  { id: 'analyze', label: 'Analyser' },
+  { id: 'evaluate', label: 'Évaluer' },
+  { id: 'create', label: 'Créer' },
+];
+
+const audienceOptions: { id: TargetAudience; label: string }[] = [
+    { id: 'children', label: 'Enfants' },
+    { id: 'adolescents', label: 'Adolescents' },
+    { id: 'adults', label: 'Adultes' },
+    { id: 'professionals', label: 'Professionnels' },
+    { id: 'general_public', label: 'Grand Public' },
 ];
 
 interface ControlsProps {
-  selectedResource: ResourceType;
+  selectedResources: ResourceType[];
   onSelectResource: (resource: ResourceType) => void;
-  selectedComplexity: Complexity;
-  onSelectComplexity: (complexity: Complexity) => void;
+  bloomLevel: BloomLevel;
+  onSelectBloomLevel: (level: BloomLevel) => void;
+  targetAudience: TargetAudience;
+  onSelectTargetAudience: (audience: TargetAudience) => void;
+  configs: ResourceConfigs;
+  onConfigChange: (resource: ResourceType, newConfig: any) => void;
   onGenerate: () => void;
   isLoading: boolean;
   disabled: boolean;
 }
 
 export function Controls({
-  selectedResource,
+  selectedResources,
   onSelectResource,
-  selectedComplexity,
-  onSelectComplexity,
+  bloomLevel,
+  onSelectBloomLevel,
+  targetAudience,
+  onSelectTargetAudience,
+  configs,
+  onConfigChange,
   onGenerate,
   isLoading,
   disabled
 }: ControlsProps) {
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-medium text-slate-300 mb-2">2. Choose resource type</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          {resourceOptions.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => onSelectResource(option.id)}
-              className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 aspect-square ${
-                selectedResource === option.id
-                  ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300'
-                  : 'bg-slate-800/50 border-slate-700 hover:border-slate-500 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <option.icon className="h-6 w-6" />
-              <span className="text-xs font-semibold text-center">{option.label}</span>
-            </button>
-          ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label htmlFor="bloom-level" className="block text-sm font-medium text-slate-300 mb-2">2. Niveau Cognitif (Bloom)</label>
+            <select id="bloom-level" value={bloomLevel} onChange={(e) => onSelectBloomLevel(e.target.value as BloomLevel)} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-2 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-colors">
+                {bloomOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+        </div>
+        <div>
+            <label htmlFor="target-audience" className="block text-sm font-medium text-slate-300 mb-2">3. Public Cible</label>
+            <select id="target-audience" value={targetAudience} onChange={(e) => onSelectTargetAudience(e.target.value as TargetAudience)} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-2 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-colors">
+                {audienceOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
         </div>
       </div>
 
       <div>
-        <h3 className="text-sm font-medium text-slate-300 mb-2">3. Select complexity level</h3>
-        <div className="flex bg-slate-800/50 border border-slate-700 rounded-lg p-1">
-          {complexityOptions.map((option) => (
-            <button
+        <h3 className="text-sm font-medium text-slate-300 mb-2">4. Choisissez les ressources à générer</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {resourceOptions.map((option) => (
+            <label
               key={option.id}
-              onClick={() => onSelectComplexity(option.id)}
-              className={`flex-1 text-center py-1.5 px-3 text-sm font-medium rounded-md transition-colors ${
-                selectedComplexity === option.id
-                  ? 'bg-cyan-600 text-white shadow-md'
-                  : 'text-slate-400 hover:bg-slate-700/50'
+              className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 aspect-square cursor-pointer ${
+                selectedResources.includes(option.id)
+                  ? 'bg-cyan-500/10 border-cyan-500 text-cyan-300'
+                  : 'bg-slate-800/50 border-slate-700 hover:border-slate-500 text-slate-400 hover:text-slate-200'
               }`}
             >
-              {option.label}
-            </button>
+              <input type="checkbox" className="sr-only" checked={selectedResources.includes(option.id)} onChange={() => onSelectResource(option.id)} />
+              <option.icon className="h-6 w-6" />
+              <span className="text-xs font-semibold text-center">{option.label}</span>
+            </label>
           ))}
         </div>
       </div>
+
+      <ResourceConfigsPanel 
+        selectedResources={selectedResources}
+        configs={configs}
+        onConfigChange={onConfigChange}
+      />
 
       <button
         onClick={onGenerate}
@@ -85,12 +110,12 @@ export function Controls({
         {isLoading ? (
           <>
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-            <span>Generating...</span>
+            <span>Génération en cours...</span>
           </>
         ) : (
           <>
             <GenerateIcon className="h-5 w-5" />
-            <span>Generate Resource</span>
+            <span>Générer {selectedResources.length > 0 ? selectedResources.length : ''} Ressource{selectedResources.length > 1 ? 's' : ''}</span>
           </>
         )}
       </button>

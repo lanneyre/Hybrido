@@ -1,12 +1,16 @@
 
 import React from 'react';
 
-export function Loader() {
+interface LoaderProps {
+  text?: string;
+}
+
+export function Loader({ text = "Génération de votre ressource..." }: LoaderProps) {
   return (
     <div className="space-y-4 animate-fade-in">
         <div className="text-center mb-6">
-            <h3 className="text-xl font-semibold text-slate-300">Generating your resource...</h3>
-            <p className="text-slate-400">This may take a few moments.</p>
+            <h3 className="text-xl font-semibold text-slate-300">{text}</h3>
+            <p className="text-slate-400">Cela peut prendre quelques instants.</p>
         </div>
         <div className="space-y-3">
             <div className="h-6 rounded-md bg-slate-700 w-1/2 shimmer-bg"></div>

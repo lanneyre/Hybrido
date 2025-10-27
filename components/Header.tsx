@@ -12,7 +12,7 @@ export function Header() {
         </h1>
       </div>
       <p className="max-w-3xl mx-auto text-slate-400">
-        Transform your course materials into engaging, multimodal learning resources. Paste your content, choose a format, and let HYBRIDO create quizzes, case studies, and more.
+        Transformez vos supports de cours en ressources d'apprentissage multimodales et engageantes. Collez votre contenu, choisissez un format, et laissez HYBRIDO créer des quiz, des études de cas, et bien plus encore.
       </p>
     </header>
   );

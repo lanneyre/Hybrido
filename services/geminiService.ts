@@ -1,74 +1,105 @@
 
-import { GoogleGenAI } from "@google/genai";
-import type { ResourceType, Complexity } from '../types';
+import { GoogleGenAI, Modality } from "@google/genai";
+import type { ResourceType, BloomLevel, TargetAudience } from '../types';
 
-const getResourceTypeFriendlyName = (resourceType: ResourceType): string => {
-    const names = {
-        quiz: "Interactive Quiz",
-        case_study: "Case Study",
-        infographic: "Textual Infographic",
-        video_script: "Pedagogical Video Script",
-        collaborative_activity: "Collaborative Activity"
-    };
-    return names[resourceType];
-}
+const friendlyResourceNames: Record<ResourceType, string> = {
+    quiz: "Quiz Interactif",
+    case_study: "Étude de Cas",
+    infographic: "Infographie Textuelle",
+    video_script: "Script de Vidéo Pédagogique",
+    collaborative_activity: "Activité Collaborative",
+    evaluation: "Évaluation",
+    didactics: "Conseils Didactiques",
+    glossary: "Glossaire"
+};
 
-const getPromptInstructions = (resourceType: ResourceType): string => {
+const getPromptInstructions = (resourceType: ResourceType, config: any): string => {
   switch (resourceType) {
     case 'quiz':
-      return "Create a 5-question multiple-choice quiz. Each question should have one correct answer and three plausible distractors. After each question, provide the correct answer with a brief explanation. Format the output clearly using Markdown (e.g., use `**` for questions and `-` for options).";
+      return `Créez un quiz avec ${config?.mcqCount ?? 3} questions à choix multiples (QCM), ${config?.trueFalseCount ?? 2} questions Vrai/Faux, et ${config?.openCount ?? 1} questions ouvertes. Pour les QCM, fournissez une seule bonne réponse et des distracteurs plausibles. Fournissez les bonnes réponses et de brèves explications. Mettez en forme en utilisant Markdown.`;
     case 'case_study':
-      return "Develop a practical case study based on the source content. The case study should include: a detailed scenario, a central problem or challenge to be solved, and a set of 3-5 discussion questions to guide analysis and application of the concepts. Format the output using Markdown with clear headings for each section (e.g., `## Scenario`).";
+      return "Développez une étude de cas pratique. Incluez : un scénario détaillé, un problème central, et 3 à 5 questions de discussion pour guider l'analyse. Mettez en forme avec des titres Markdown (par ex., `## Scénario`).";
     case 'infographic':
-      return "Summarize the key points of the source text into a textual infographic format. Use a main title, several subheadings with concise bullet points under each, and a concluding summary sentence. The goal is to present the information in a visually scannable and digestible way. Use Markdown for structure.";
+      return "Résumez les points clés sous forme d'infographie textuelle. Utilisez un titre principal, plusieurs sous-titres avec des listes à puces concises, et une phrase de conclusion. L'objectif est d'être visuellement lisible rapidement. Utilisez Markdown.";
     case 'video_script':
-      return "Write a script for a 2-3 minute educational video. The script should be divided into scenes. For each scene, provide the voiceover narration and suggestions for on-screen visuals (e.g., text, graphics, animations). Format the script clearly using Markdown, with headings for `## Scene X`, `**Voiceover:**`, and `**Visuals:**`.";
+      return `Écrivez un script pour une vidéo pédagogique de ${config?.duration ?? 2} minutes. Divisez-le en scènes avec une narration en voix off et des suggestions de visuels à l'écran. Générez également un prompt concis et descriptif pour une IA de génération vidéo (comme Pika ou HeyGen) afin de créer un résumé visuel de la vidéo. Mettez en forme le script avec des titres Markdown pour Scène, Voix Off, Visuels, et Prompt IA Vidéo.`;
     case 'collaborative_activity':
-      return "Design a collaborative activity for a small group of 3-4 learners. The activity should be based on the provided content. Describe the main objective, the step-by-step instructions for the group, the roles of each participant (if any), and the final deliverable or outcome. Format using Markdown with clear headings.";
+      return `Concevez une activité collaborative pour un petit groupe. Elle devrait durer environ ${config?.duration ?? 15} minutes. Décrivez l'objectif, les instructions étape par étape, les rôles (le cas échéant), et le livrable final. Mettez en forme avec Markdown.`;
+    case 'evaluation':
+        return `Créez une évaluation formative pour évaluer la compréhension du contenu source. Incluez un mélange de types de questions (par ex., choix multiples, réponse courte, une tâche pratique) alignées sur les objectifs d'apprentissage clés.`;
+    case 'didactics':
+        return `Fournissez des conseils didactiques pour enseigner ce contenu. Identifiez les idées fausses courantes que les apprenants pourraient avoir. Suggérez des approches pédagogiques efficaces (par ex., apprentissage actif). Décrivez les précautions clés pour garantir une compréhension précise.`;
+    case 'glossary':
+        return `Créez un glossaire des termes clés du contenu source. Pour chaque terme, fournissez une définition claire et concise adaptée au public cible. Listez les termes par ordre alphabétique.`;
     default:
       return '';
   }
 };
 
+type SourceContent = {
+    text?: string;
+    image?: { data: string; mimeType: string };
+};
+
 export const generateResource = async (
-  sourceText: string,
+  sourceContent: SourceContent,
   resourceType: ResourceType,
-  complexity: Complexity
+  bloomLevel: BloomLevel,
+  targetAudience: TargetAudience,
+  config: any
 ): Promise<string> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-  }
+  if (!process.env.API_KEY) throw new Error("API_KEY environment variable not set");
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const instructions = getPromptInstructions(resourceType);
-  const friendlyResourceName = getResourceTypeFriendlyName(resourceType);
+  const instructions = getPromptInstructions(resourceType, config);
+  const friendlyResourceName = friendlyResourceNames[resourceType];
 
   const prompt = `
-    You are an expert in instructional design and pedagogy, specializing in creating multimodal learning resources. 
-    Your task is to transform the following source content into a specific educational format while preserving its scientific accuracy and rigor.
+    Vous êtes un expert en ingénierie pédagogique et en pédagogie francophone. Votre tâche est de transformer le contenu source suivant en un format pédagogique spécifique, en garantissant la rigueur scientifique. Tout le contenu généré doit être en français.
 
-    **Source Content:**
-    ---
-    ${sourceText}
-    ---
+    **Instructions de base :**
+    - **Public Cible :** ${targetAudience}
+    - **Niveau Cognitif (Taxonomie de Bloom) :** ${bloomLevel}. La ressource générée doit cibler cette compétence cognitive spécifique.
+    - **Contenu Source :**
+      ---
+      ${sourceContent.text || 'Une image a été fournie comme matériel source.'}
+      ---
 
-    **Task:**
-    Generate a "${friendlyResourceName}".
+    **Détails de la tâche :**
+    - **Ressource à générer :** "${friendlyResourceName}"
+    - **Instructions spécifiques pour ${friendlyResourceName} :**
+      ${instructions}
 
-    **Complexity Level:**
-    The target audience is at a "${complexity}" level. Adapt the language, depth of questions, and concepts accordingly.
-
-    **Specific Instructions for ${friendlyResourceName}:**
-    ${instructions}
-
-    Ensure the final output is well-structured, engaging, and pedagogically sound. The entire response must be in Markdown format.
+    Adaptez votre langage, votre ton, votre complexité et vos exemples au public cible et au niveau cognitif spécifiés. L'intégralité de la réponse doit être au format Markdown bien structuré.
   `;
+  
+  const contents = sourceContent.image 
+    ? { parts: [ { text: prompt }, { inlineData: { data: sourceContent.image.data, mimeType: sourceContent.image.mimeType } } ]}
+    : prompt;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-pro',
-    contents: prompt,
+    contents: contents,
   });
 
   return response.text;
 };
+
+export const generateImage = async (prompt: string): Promise<string> => {
+    if (!process.env.API_KEY) throw new Error("API_KEY environment variable not set");
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [{ text: prompt }] },
+        config: { responseModalities: [Modality.IMAGE] },
+    });
+
+    for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+            return part.inlineData.data;
+        }
+    }
+    throw new Error("La génération d'image a échoué ou n'a retourné aucune donnée.");
+}
