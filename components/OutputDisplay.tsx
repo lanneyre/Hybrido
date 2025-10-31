@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Loader } from './Loader';
-import { SparklesIcon, WarningIcon, DownloadIcon } from './Icons';
+import { SparklesIcon, DownloadIcon, ChevronDownIcon } from './Icons';
+import { exportAsPdf, exportAsDocx, exportAsJson, exportAsXlsx } from '../services/exportService';
+import { convertMarkdownToStructuredJson } from '../services/geminiService';
 
 interface OutputDisplayProps {
   generatedContents: Record<string, { content: string, image?: string, error?: string }>;
@@ -12,18 +14,17 @@ interface OutputDisplayProps {
 
 const FormattedContent = ({ text }: { text: string }) => {
   const formatText = (inputText: string): string => {
-    // Basic Markdown to HTML conversion. A library like 'marked' would be more robust.
     return inputText
-      .replace(/</g, "&lt;").replace(/>/g, "&gt;") // Sanitize HTML
+      .replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold text-slate-200 mt-4 mb-2">$1</h3>')
       .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold text-cyan-300 mt-6 mb-3 border-b border-slate-700 pb-2">$1</h2>')
       .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold text-cyan-400 mt-8 mb-4">$1</h1>')
-      .replace(/^\s*[-*] (.*$)/gim, '<li class="ml-5 list-inside list-disc marker:text-cyan-400">$1</li>') // Improved list
-      .replace(/<\/li>\n<li/g, '</li><li') // Compact list items
+      .replace(/^\s*[-*] (.*$)/gim, '<li class="ml-5 list-inside list-disc marker:text-cyan-400">$1</li>')
+      .replace(/<\/li>\n<li/g, '</li><li')
       .replace(/\n/g, '<br />')
-      .replace(/<br \/>(\s*<li)/g, '$1'); // Remove breaks before list items
+      .replace(/<br \/>(\s*<li)/g, '$1');
   };
 
   return (
@@ -34,19 +35,98 @@ const FormattedContent = ({ text }: { text: string }) => {
   );
 };
 
+const ExportMenu = ({ resourceKey, content, structuredData, onConvertToStructured }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isConverting, setIsConverting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleExport = async (format) => {
+        setIsOpen(false);
+        if (['json', 'xlsx'].includes(format) && !structuredData) {
+            setIsConverting(true);
+            setError(null);
+            try {
+                const data = await onConvertToStructured();
+                if (format === 'json') exportAsJson(data, resourceKey);
+                if (format === 'xlsx') exportAsXlsx(data, resourceKey);
+            } catch (e) {
+                setError("La conversion a échoué.");
+                console.error(e);
+            } finally {
+                setIsConverting(false);
+            }
+        } else {
+            if (format === 'pdf') exportAsPdf(content, resourceKey);
+            if (format === 'docx') exportAsDocx(content, resourceKey);
+            if (format === 'json' && structuredData) exportAsJson(structuredData, resourceKey);
+            if (format === 'xlsx' && structuredData) exportAsXlsx(structuredData, resourceKey);
+        }
+    };
+    
+    const isStructuredResource = ['quiz', 'glossary'].includes(resourceKey);
+
+    return (
+        <div className="relative" ref={menuRef}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors p-1 rounded-md bg-slate-700/50 hover:bg-slate-700"
+                title="Exporter la ressource"
+            >
+                {isConverting ? (
+                    <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        <span className="text-xs">Conversion...</span>
+                    </>
+                ) : (
+                    <>
+                        <DownloadIcon className="h-5 w-5" />
+                        <span className="text-sm">Exporter</span>
+                        <ChevronDownIcon className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    </>
+                )}
+            </button>
+            {isOpen && !isConverting && (
+                <div className="absolute right-0 mt-2 w-40 bg-slate-800 border border-slate-600 rounded-md shadow-lg z-10 animate-fade-in" style={{ animationDuration: '0.2s'}}>
+                    <ul className="text-sm text-slate-300">
+                        <li className="px-3 py-2 hover:bg-slate-700 cursor-pointer" onClick={() => handleExport('pdf')}>PDF</li>
+                        <li className="px-3 py-2 hover:bg-slate-700 cursor-pointer" onClick={() => handleExport('docx')}>DOCX (Word)</li>
+                        {isStructuredResource && (
+                            <>
+                                <li className="border-t border-slate-600"></li>
+                                <li className="px-3 py-2 hover:bg-slate-700 cursor-pointer" onClick={() => handleExport('json')}>JSON</li>
+                                <li className="px-3 py-2 hover:bg-slate-700 cursor-pointer" onClick={() => handleExport('xlsx')}>XLSX (Excel)</li>
+                            </>
+                        )}
+                    </ul>
+                </div>
+            )}
+            {error && <p className="text-xs text-red-400 absolute right-0 mt-1">{error}</p>}
+        </div>
+    );
+};
+
 
 export function OutputDisplay({ generatedContents, currentGeneration, isLoading, friendlyResourceNames }: OutputDisplayProps) {
+  const [structuredDataCache, setStructuredDataCache] = useState({});
 
-  const handleDownload = (filename: string, content: string, mimeType: string = 'text/plain;charset=utf-8') => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleConvertToStructured = async (resourceKey: string, content: string) => {
+    if (structuredDataCache[resourceKey]) {
+      return structuredDataCache[resourceKey];
+    }
+    const data = await convertMarkdownToStructuredJson(content, resourceKey as 'quiz' | 'glossary');
+    setStructuredDataCache(prev => ({ ...prev, [resourceKey]: data }));
+    return data;
   };
 
   const renderContent = () => {
@@ -72,9 +152,12 @@ export function OutputDisplay({ generatedContents, currentGeneration, isLoading,
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="text-lg font-semibold capitalize text-cyan-400">{displayName}</h3>
                             {item.content && (
-                                <button onClick={() => handleDownload(`${key}.txt`, item.content)} className="text-slate-400 hover:text-white transition-colors" title="Télécharger le texte">
-                                    <DownloadIcon className="h-5 w-5" />
-                                </button>
+                                <ExportMenu
+                                    resourceKey={key}
+                                    content={item.content}
+                                    structuredData={structuredDataCache[key]}
+                                    onConvertToStructured={() => handleConvertToStructured(key, item.content)}
+                                />
                             )}
                         </div>
                         {item.error && <p className="text-red-400">{item.error}</p>}

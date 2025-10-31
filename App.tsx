@@ -16,7 +16,6 @@ const friendlyResourceNames: Record<string, string> = {
     evaluation: "Évaluation",
     didactics: "Didactique",
     glossary: "Glossaire",
-    enrichment: "Suggestions d'enrichissement"
 };
 
 export default function App() {
@@ -38,12 +37,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSourceFileChange = useCallback((fileData: { data: string; mimeType: string; } | null) => {
-    if (fileData) {
-        setSourceFile({ ...fileData, name: 'image_téléchargée.png' });
-    } else {
-        setSourceFile(null);
-    }
+  const handleSourceFileChange = useCallback((fileData: { data: string; mimeType: string; name: string } | null) => {
+    setSourceFile(fileData);
   }, []);
 
   const handleSelectResource = (resource: ResourceType) => {
@@ -63,7 +58,7 @@ export default function App() {
 
   const handleGenerate = useCallback(async () => {
     if (!sourceText.trim() && !sourceFile) {
-      setError('Veuillez fournir un contenu source (texte ou image).');
+      setError('Veuillez fournir un contenu source (texte ou fichier).');
       return;
     }
     if (selectedResources.length === 0) {
@@ -76,7 +71,7 @@ export default function App() {
     setGeneratedContents({});
     setCurrentGeneration(null);
 
-    const sourceContent = { text: sourceText, image: sourceFile ?? undefined };
+    const sourceContent = { text: sourceText, file: (sourceFile && sourceFile.data) ? sourceFile : undefined };
 
     for (const resourceType of selectedResources) {
       try {
@@ -95,16 +90,6 @@ export default function App() {
         const friendlyName = friendlyResourceNames[resourceType] || resourceType;
         setGeneratedContents(prev => ({ ...prev, [resourceType]: { content: '', error: `La génération de "${friendlyName}" a échoué. Veuillez réessayer.` } }));
       }
-    }
-    
-    // Generate enrichment suggestions
-    try {
-        setCurrentGeneration('enrichment');
-        const enrichmentPrompt = { text: `En vous basant sur le contenu fourni, suggérez des activités complémentaires, une brève bibliographie au format APA, et quelques liens "pour aller plus loin".`, image: sourceFile ?? undefined };
-        const enrichmentResult = await generateResource(enrichmentPrompt, 'didactics', 'create', targetAudience, {});
-        setGeneratedContents(prev => ({...prev, enrichment: { content: enrichmentResult }}));
-    } catch (e) {
-        console.error(`Failed to generate enrichment:`, e);
     }
 
     setIsLoading(false);

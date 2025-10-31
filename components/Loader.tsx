@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface LoaderProps {
@@ -23,7 +22,17 @@ export function Loader({ text = "Génération de votre ressource..." }: LoaderPr
             <div className="h-4 rounded-md bg-slate-700 w-full shimmer-bg"></div>
             <div className="h-4 rounded-md bg-slate-700 w-full shimmer-bg"></div>
         </div>
-        <style jsx>{`
+        {/* Fix: Replaced the non-standard `style jsx` tag, which is not supported in this project setup,
+            with a standard `<style>` tag. Also added the missing `@keyframes` for the shimmer animation. */}
+        <style>{`
+            @keyframes shimmer {
+                0% {
+                    background-position: -1000px 0;
+                }
+                100% {
+                    background-position: 1000px 0;
+                }
+            }
             .shimmer-bg {
                 background: linear-gradient(to right, #334155 4%, #475569 25%, #334155 36%);
                 background-size: 1000px 100%;
